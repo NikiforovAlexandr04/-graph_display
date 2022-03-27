@@ -70,7 +70,7 @@ class PaintWidget(QWidget):
     def convert_coords(self, x, y, delta):
         return int(x*540/delta) + 270, -int(y*540/delta) + 270
 
-    #соединяем точки с помощью алгоритма
+    #соединяем точки с помощью алгоритма Брезенхема
     def draw_line(self, qp, x1, y1, x2, y2):
         delta_x = abs(x2 - x1)
         delta_y = abs(y2 - y1)
