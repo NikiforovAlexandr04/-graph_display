@@ -1,19 +1,17 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPen
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt
-import random
+
 
 class App(QMainWindow):
-
     def __init__(self):
         super().__init__()
         self.title = 'PyQt paint'
         self.left = 100
         self.top = 100
         self.width = 540
-        self.height = 380
+        self.height = 540
         self.initUI()
 
     def initUI(self):
@@ -35,28 +33,44 @@ class App(QMainWindow):
 
 
 class PaintWidget(QWidget):
-
     def paintEvent(self, event):
+
+        delta = 20 #масштаб, количество делений вдоль оси
+
         qp = QPainter(self)
         qp.setPen(Qt.black)
-        for i in range(380):
-            qp.drawPoint(270, i)
         for i in range(540):
-            qp.drawPoint(i, 190)
+            qp.drawPoint(270, i)
+            qp.drawPoint(i, 270)
+
         previous_points = 0
-        for i in range(-270, 270):
-            pt = self.convert_coords(i, self.f(i))
-            qp.drawPoint(pt[0], pt[1])
+        points_x = []
+        for i in range(101):
+            points_x.append(delta - i*delta/50)
+
+        points = []
+        for i in points_x:
+            pt_y = self.f(i)
+            if abs(pt_y) < delta*3:
+                points.append(self.convert_coords(i, pt_y, delta))
+
+        for point in points:
+            qp.drawPoint(point[0], point[1])
             if previous_points != 0:
-                self.draw_line(qp, pt[0], pt[1], previous_points[0], previous_points[1])
-            previous_points = pt
+                self.draw_line(qp, point[0], point[1], previous_points[0], previous_points[1])
+            previous_points = point
 
+        self.show_scale(delta, qp)
+
+    #заданная функция
     def f(self, x):
-        return x
+        return x*x*x
 
-    def convert_coords(self, x, y):
-        return x + 270, -y + 190
+    #преобразуем координаты из декартовых в экранные
+    def convert_coords(self, x, y, delta):
+        return int(x*540/delta) + 270, -int(y*540/delta) + 270
 
+    #соединяем точки с помощью алгоритма
     def draw_line(self, qp, x1, y1, x2, y2):
         delta_x = abs(x2 - x1)
         delta_y = abs(y2 - y1)
@@ -83,6 +97,24 @@ class PaintWidget(QWidget):
             if error_2 < delta_x:
                 error += delta_x
                 y1 += sign_y
+
+    #рисуем масштабные метки
+    def show_scale(self, delta, qp):
+        font = qp.font()
+        font.setPointSize(8)
+        qp.setFont(font)
+        for i in range(21):
+            cord = int(i*540/20)
+            qp.drawPoint(268, cord)
+            qp.drawPoint(269, cord)
+            qp.drawPoint(271, cord)
+            qp.drawPoint(272, cord)
+            qp.drawPoint(cord, 268)
+            qp.drawPoint(cord, 269)
+            qp.drawPoint(cord, 271)
+            qp.drawPoint(cord, 272)
+            if i != 0 and i != 20: qp.drawText(cord - 10, 285, str(-delta/2 + i * delta / 20))
+            if i != 0 and i != 20 and i != 10: qp.drawText(275, cord + 5, str(delta/2 - i * delta / 20))
 
 
 if __name__ == '__main__':
