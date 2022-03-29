@@ -1,7 +1,42 @@
+import math
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QLabel
 from PyQt5.QtGui import QPainter
 from PyQt5.QtCore import Qt
+
+
+A = 0
+B = 2
+
+
+# заданная функция
+def f(x):
+    return math.sqrt(x) if x > 0 else 0
+
+
+WIDTH = 720
+POINTS = {}
+
+
+def getHeight():
+    points_x = []
+    for i in range(101):
+        points_x.append(B - i * B / 50)
+    for x in points_x:
+        POINTS[x] = f(x)
+    max_y = max(POINTS.values())
+    min_y = min(POINTS.values())
+    step = WIDTH / (B - A)
+    hgt = int((max_y - min_y) * step)
+    return hgt if hgt < 1024 else 1024, min_y, max_y
+
+
+def getAxis(height, min_y, max_y):
+    axis_x = WIDTH / (B - A) * (0 - A)
+    axis_y = height / (max_y - min_y)*(0-min_y)
+    axis_y = axis_y if axis_y > 0 else 10
+    axis_y = axis_y if axis_y < height else height
+    return int(axis_x), int(axis_y)
 
 
 class App(QMainWindow):
@@ -9,14 +44,15 @@ class App(QMainWindow):
         super().__init__()
         self.title = 'PyQt paint'
         self.left = 100
-        self.top = 100
-        self.width = 540
-        self.height = 540
+        self.top = 0
+        self.width = WIDTH
+        self.height = getHeight()[0]
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setFixedSize(self.width, self.height)
 
         # Set window background color
         self.setAutoFillBackground(True)
@@ -33,42 +69,37 @@ class App(QMainWindow):
 
 
 class PaintWidget(QWidget):
-    def paintEvent(self, event):
 
-        delta = 20 #масштаб, количество делений вдоль оси
+    def paintEvent(self, event):
 
         qp = QPainter(self)
         qp.setPen(Qt.black)
-        for i in range(540):
-            qp.drawPoint(270, i)
-            qp.drawPoint(i, 270)
+
+        height, min_y, max_y = getHeight()
+        axis_x, axis_y = getAxis(height, min_y, max_y)
+
+        for i in range(height):
+            qp.drawPoint(axis_x, i)
+        for i in range(WIDTH):
+            qp.drawPoint(i, height - axis_y)
 
         previous_points = 0
-        points_x = []
-        for i in range(101):
-            points_x.append(delta - i*delta/50)
 
-        points = []
-        for i in points_x:
-            pt_y = self.f(i)
-            if abs(pt_y) < delta*3:
-                points.append(self.convert_coords(i, pt_y, delta))
-
-        for point in points:
-            qp.drawPoint(point[0], point[1])
+        for x in POINTS:
+            y = POINTS[x]
+            y = y if abs(y) <= height else height + 10
+            converted_pt = self.convert_coords(x, y, axis_x, axis_y, height)
+            qp.drawPoint(converted_pt[0], converted_pt[1])
             if previous_points != 0:
-                self.draw_line(qp, point[0], point[1], previous_points[0], previous_points[1])
-            previous_points = point
-
-        self.show_scale(delta, qp)
-
-    #заданная функция
-    def f(self, x):
-        return x*x*x
+                self.draw_line(qp, converted_pt[0], converted_pt[1], previous_points[0], previous_points[1])
+            previous_points = converted_pt
 
     #преобразуем координаты из декартовых в экранные
-    def convert_coords(self, x, y, delta):
-        return int(x*540/delta) + 270, -int(y*540/delta) + 270
+    def convert_coords(self, x, y, axis_x, axis_y, height):
+        coef = WIDTH/(B-A)
+        cord_x = axis_x +coef*x
+        cord_y = height - (axis_y + coef*y)
+        return int(cord_x), int(cord_y)
 
     #соединяем точки с помощью алгоритма Брезенхема
     def draw_line(self, qp, x1, y1, x2, y2):
@@ -82,12 +113,12 @@ class PaintWidget(QWidget):
             sign_y = 1
         else:
             sign_y = -1
-
         error = delta_x - delta_y
 
-        qp.drawPoint(x2, y2)
+        qp.drawPoint(int(x2), int(y2))
+
         while (x1 != x2 or y1 != y2):
-            qp.drawPoint(x1, y1)
+            qp.drawPoint(int(x1), int(y1))
             error_2 = error * 2
 
             if error_2 > -delta_y:
@@ -97,24 +128,6 @@ class PaintWidget(QWidget):
             if error_2 < delta_x:
                 error += delta_x
                 y1 += sign_y
-
-    #рисуем масштабные метки
-    def show_scale(self, delta, qp):
-        font = qp.font()
-        font.setPointSize(8)
-        qp.setFont(font)
-        for i in range(21):
-            cord = int(i*540/20)
-            qp.drawPoint(268, cord)
-            qp.drawPoint(269, cord)
-            qp.drawPoint(271, cord)
-            qp.drawPoint(272, cord)
-            qp.drawPoint(cord, 268)
-            qp.drawPoint(cord, 269)
-            qp.drawPoint(cord, 271)
-            qp.drawPoint(cord, 272)
-            if i != 0 and i != 20: qp.drawText(cord - 10, 285, str(-delta/2 + i * delta / 20))
-            if i != 0 and i != 20 and i != 10: qp.drawText(275, cord + 5, str(delta/2 - i * delta / 20))
 
 
 if __name__ == '__main__':
